@@ -1,0 +1,45 @@
+name: release
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  create_release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    permissions: write-all
+    steps:
+      - name: create release
+        uses: ncipollo/release-action@v1 
+        with:
+          tag: v1.0.${{ github.run_number }}
+
+  build_releases:
+    name: Build Releases
+    needs: create_release
+    strategy:
+      matrix:
+        platform: [ubuntu, macos, windows]
+        include:
+          - os: ubuntu-latest
+            suffix: ubuntu
+
+    runs-on: ${{ format('{0}-latest', matrix.platform) }}
+    permissions: write-all
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Go 
+        uses: actions/setup-go@v5 
+        with:
+          go-version-file: 'go.mod'
+          cache-dependency-path: 'go.sum'
+
+      - name: Build binary
+        run:
+           go build -o 'cmdg-${{ matrix.platform }}' -ldflags '-X main.InitId=${{ secrets.CLIENT_ID }} -X main.InitSecret=${{ secrets.CLIENT_SECRET }}' ./cmd/cmdg
+
